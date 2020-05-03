@@ -1,1 +1,6 @@
-./data/*
+# big files
+data
+
+# dumb caching
+preprocessing/__pycache__
+.ipynb_checkpoints
