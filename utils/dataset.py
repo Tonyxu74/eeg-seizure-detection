@@ -2,6 +2,8 @@ from torch.utils import data
 import os
 from myargs import args
 from preprocessing import nedc_pystream as ned
+from scipy import signal
+import matplotlib.pyplot as plt
 
 
 def findFile(root_dir, contains):
@@ -95,12 +97,25 @@ class Dataset(data.Dataset):
 
                 # time where label is 1
                 seizure_time = 0
+
+                # get step size if label is zero
+                next_step_size = args.window_len - args.label_0_overlap
+
+                # find seizure time for the window selected
                 for (start, end), label in zip(file_dict['event_time'], file_dict['label']):
                     if label == 1:
-                        # if window is` completely enclosed in single label
-                        if end >= window_end and start <= window_start:
-                            seizure_time = window_end - window_start
+                        # if not at window yet:
+                        if end < window_start:
+                            continue
+
+                        # if past window:
+                        elif window_end < start:
                             break
+
+                        # if window is completely enclosed in single label, more positive examples coming, reduce step
+                        elif end >= window_end and start <= window_start:
+                            seizure_time += window_end - window_start
+                            next_step_size = args.window_len - args.label_1_overlap
 
                         # if window completely encloses a label
                         elif end < window_end and start > window_start:
@@ -110,9 +125,10 @@ class Dataset(data.Dataset):
                         elif end < window_end and start <= window_start:
                             seizure_time += end - window_start
 
-                        # if start in window and end after window
+                        # if start in window and end after window, more positive examples coming, reduce step
                         elif end >= window_end and start > window_start:
                             seizure_time += window_end - start
+                            next_step_size = args.window_len - args.label_1_overlap
 
                 # window label is 1 if the percent of seizure time is greater than required sensitivity
                 window_label = int(seizure_time / args.window_len >= args.seiz_sens)
@@ -120,7 +136,19 @@ class Dataset(data.Dataset):
                 # add datapoint
                 self.datalist.append({'filepath': file, 'start_time': window_start, 'label': window_label})
 
-                window_start += args.window_len - args.overlap
+                # continue to next window
+                window_start += next_step_size
+
+        # find distribution of positive examples
+        numpos = 0
+        for item in self.datalist:
+            numpos += item['label']
+
+        print(
+            f"positive examples: {numpos} || "
+            f"total examples: {len(self.datalist)} || "
+            f"percent positive: {numpos/len(self.datalist)}"
+        )
 
         # get parameters for the electrode configurations
         self.tcp_ar_params = ned.nedc_load_parameters('../preprocessing/parameter_files/params_01_tcp_ar.txt')
@@ -135,7 +163,7 @@ class Dataset(data.Dataset):
 
         return len(self.datalist)
 
-    def edf_to_tensor(self, edf_data, start, freq=250):
+    def edf_to_tensor(self, edf_data, start, freq):
         """
         Performs STFT on given edf data, appends montages, and converts it to tensor
         :param edf_data: edf data
@@ -191,4 +219,4 @@ def GenerateIterator(datapath, eval=False, shuffle=True):
     return data.DataLoader(Dataset(datapath=datapath, eval=eval), **params)
 
 
-GenerateIterator('../data/edf')
+# GenerateIterator('../data/edf')

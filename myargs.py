@@ -22,10 +22,13 @@ parser.add_argument('--pretrain_epoch', default=1, type=int,
 
 parser.add_argument('--batch_size', default=16, type=int,
                     help='input batch size')
+
 parser.add_argument('--window_len', default=30, type=int,
                     help='length of window to cut out to perform STFT on')
-parser.add_argument('--overlap', default=15, type=int,
-                    help='overlap between 2 adjacent windows')
+parser.add_argument('--label_0_overlap', default=0, type=int,
+                    help='overlap between 2 adjacent windows if they are label 0')
+parser.add_argument('--label_1_overlap', default=28, type=int,
+                    help='overlap between 2 adjacent windows if they are label 1')
 parser.add_argument('--seiz_sens', default=0.3, type=float,
                     help='percent of window that must be positive to label it seizure')
 
