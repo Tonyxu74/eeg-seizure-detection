@@ -1,9 +1,11 @@
 from torch.utils import data
+import torch
 import os
 from myargs import args
 from preprocessing import nedc_pystream as ned
 from scipy import signal
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def findFile(root_dir, contains):
@@ -91,6 +93,8 @@ class Dataset(data.Dataset):
             recording_length = int(file_dict['event_time'][-1][-1])
             window_start = 0
 
+            '''check if recording length is < window length for special case'''
+
             while window_start + args.window_len <= recording_length:
                 # get end of window
                 window_end = window_start + args.window_len
@@ -172,7 +176,38 @@ class Dataset(data.Dataset):
         :return:
         """
 
-        return 0
+        # sampling frequency
+        sample_freq = freq[0]
+
+        # ensure all sample frequency for each montage is equal
+        assert all([freq[i] == sample_freq for i in range(1, len(freq))])
+
+        # cut each edf file to the proper window
+        start_ind = start * sample_freq
+        edf_data = [edf_file[start_ind: start_ind + sample_freq * args.window_len] for edf_file in edf_data]
+
+        # stft each montage
+        stft_data = []
+        for data in edf_data:
+            f, t, stft = signal.stft(data, fs=sample_freq, nperseg=sample_freq)
+            stft_data.append(abs(stft))
+
+        # filter out 0, 57 - 63 and 117 to 123 Hz
+        stft_data = [
+            np.concatenate((
+                stft_item[1:57],
+                stft_item[64: 117],
+                stft_item[124:126]
+            ), axis=0) for stft_item in stft_data
+        ]
+
+        # convert to tensor and return
+        stft_data = np.asarray(stft_data)
+        tensor = torch.from_numpy(stft_data).float()
+
+        # data augmentation here?
+
+        return tensor
 
     def __getitem__(self, index):
         """
@@ -189,8 +224,16 @@ class Dataset(data.Dataset):
         # cut out montages 8 and 13 here
         if '01_tcp_ar' in edf_path:
             freq, edf, _ = load_edf(self.tcp_ar_params, edf_path)
+            del freq[8]
+            del freq[12]
+            del edf[8]
+            del edf[12]
         elif '02_tcp_le' in edf_path:
             freq, edf, _ = load_edf(self.tcp_le_params, edf_path)
+            del freq[8]
+            del freq[12]
+            del edf[8]
+            del edf[12]
         else:
             freq, edf, _ = load_edf(self.tcp_ar_a_params, edf_path)
 
@@ -219,4 +262,21 @@ def GenerateIterator(datapath, eval=False, shuffle=True):
     return data.DataLoader(Dataset(datapath=datapath, eval=eval), **params)
 
 
-# GenerateIterator('../data/edf')
+# check that the data is loading properly
+iter = GenerateIterator('../data/edf', shuffle=False, eval=True)
+
+for stft, label in iter:
+    print(stft.shape, label)
+
+    a = stft[0][0].numpy()
+    b = stft[0][5].numpy()
+
+    fig = plt.figure()
+    fig.add_subplot(1, 2, 1)
+    plt.imshow(abs(a))
+    fig.add_subplot(1, 2, 2)
+    plt.imshow(abs(b))
+    plt.colorbar()
+    plt.show()
+
+    break
