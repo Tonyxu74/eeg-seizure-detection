@@ -4,6 +4,11 @@ parser = argparse.ArgumentParser()
 
 # ======= Model parameters =======
 
+parser.add_argument('--model_name', default='resnet18', type=str,
+                    help='pretrained model name')
+parser.add_argument('--num_electrodes', default=20, type=int,
+                    help='number of electrodes used for input')
+
 parser.add_argument('--lr', default=0.001, type=float,
                     help='learning rate')
 parser.add_argument('--weight_decay', default=0.0001, type=float,

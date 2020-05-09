@@ -93,8 +93,19 @@ class Dataset(data.Dataset):
             recording_length = int(file_dict['event_time'][-1][-1])
             window_start = 0
 
-            '''check if recording length is < window length for special case'''
+            # special case where recording length is less than window length
+            if recording_length < args.window_len:
+                # though unlikely for such a short snippet, still check for seizure/not-seizure times
+                seizure_time = 0
+                for (start, end), label in zip(file_dict['event_time'], file_dict['label']):
+                    if label == 1:
+                        seizure_time += start - end
 
+                window_label = int(seizure_time / args.window_len >= args.seiz_sens)
+
+                self.datalist.append({'filepath': file, 'start_time': window_start, 'label': window_label})
+
+            # get all windows and labels of windows
             while window_start + args.window_len <= recording_length:
                 # get end of window
                 window_end = window_start + args.window_len
@@ -186,6 +197,12 @@ class Dataset(data.Dataset):
         start_ind = start * sample_freq
         edf_data = [edf_file[start_ind: start_ind + sample_freq * args.window_len] for edf_file in edf_data]
 
+        # special case for very short recordings
+        if len(edf_data[0]) < sample_freq * args.window_len:
+            # append zeros at end of array to make it the proper length
+            zeros_arr = np.zeros(sample_freq * args.window_len - len(edf_data[0]), dtype=np.float32)
+            edf_data = [np.concatenate((data, zeros_arr)) for data in edf_data]
+
         # stft each montage
         stft_data = []
         for data in edf_data:
@@ -263,20 +280,20 @@ def GenerateIterator(datapath, eval=False, shuffle=True):
 
 
 # check that the data is loading properly
-iter = GenerateIterator('../data/edf', shuffle=False, eval=True)
-
-for stft, label in iter:
-    print(stft.shape, label)
-
-    a = stft[0][0].numpy()
-    b = stft[0][5].numpy()
-
-    fig = plt.figure()
-    fig.add_subplot(1, 2, 1)
-    plt.imshow(abs(a))
-    fig.add_subplot(1, 2, 2)
-    plt.imshow(abs(b))
-    plt.colorbar()
-    plt.show()
-
-    break
+# iter = GenerateIterator('../data/edf', shuffle=False, eval=True)
+#
+# for stft, label in iter:
+#     print(stft.shape, label)
+#
+#     a = stft[0][0].numpy()
+#     b = stft[0][5].numpy()
+#
+#     fig = plt.figure()
+#     fig.add_subplot(1, 2, 1)
+#     plt.imshow(abs(a))
+#     fig.add_subplot(1, 2, 2)
+#     plt.imshow(abs(b))
+#     plt.colorbar()
+#     plt.show()
+#
+#     break
