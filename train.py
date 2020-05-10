@@ -31,7 +31,7 @@ def train(datapath, parampath, continue_train=False):
     # if training model from previous saved weights
     if continue_train:
         pretrained_dict = torch.load(
-            './data/models/{}_model_{}.pt'.format(args.model_name, args.start_epoch
+            '{}/models/{}_model_{}.pt'.format(datapath, args.model_name, args.start_epoch
         ))['state_dict']
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
@@ -71,8 +71,8 @@ def train(datapath, parampath, continue_train=False):
 
             # predictions to check for model progression
             pred_class = torch.argmax(prediction, dim=-1)
-            train_pred_classes.append(pred_class.cpu().data.numpy().tolist())
-            train_ground_truths.append(label.cpu().data.numpy().tolist())
+            train_pred_classes.extend(pred_class.cpu().data.numpy().tolist())
+            train_ground_truths.extend(label.cpu().data.numpy().tolist())
 
             # get loss
             loss = lossfn(prediction, label)
@@ -84,11 +84,9 @@ def train(datapath, parampath, continue_train=False):
             train_losses_sum += loss
             train_pbar.set_description('Epoch: {} || Loss: {:.5f} '.format(epoch, train_losses_sum / train_n_total))
             train_n_total += 1
-            
 
         train_pred_classes = np.asarray(train_pred_classes)
         train_ground_truths = np.asarray(train_ground_truths)
-
         train_accuracy = np.mean((train_pred_classes == train_ground_truths)).astype(np.float)
 
         # ==================== Validation set ====================
@@ -103,7 +101,7 @@ def train(datapath, parampath, continue_train=False):
                 # progress bar to view progression of model
                 val_pbar = tqdm.tqdm(val_iter)
 
-                # used to check accuracy to gauge model progression on training set
+                # used to check accuracy to gauge model progression on validation set
                 val_losses_sum = 0
                 val_n_total = 1
                 val_pred_classes = []
@@ -124,8 +122,8 @@ def train(datapath, parampath, continue_train=False):
 
                     # predictions to check for model progression
                     pred_class = torch.argmax(prediction, dim=-1)
-                    val_pred_classes.append(pred_class.cpu().data.numpy().tolist())
-                    val_ground_truths.append(label.cpu().data.numpy().tolist())
+                    val_pred_classes.extend(pred_class.cpu().data.numpy().tolist())
+                    val_ground_truths.extend(label.cpu().data.numpy().tolist())
 
                     # get loss
                     loss = lossfn(prediction, label)
