@@ -43,7 +43,7 @@ def train(datapath, parampath, continue_train=False):
         model = model.cuda()
         lossfn = lossfn.cuda()
 
-    for epoch in range(start_epoch, args.num_epochs):
+    for epoch in range(start_epoch+1, args.num_epochs):
 
         # ==================== Training set ====================
 
