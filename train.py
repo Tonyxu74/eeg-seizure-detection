@@ -30,7 +30,9 @@ def train(datapath, parampath, continue_train=False):
 
     # if training model from previous saved weights
     if continue_train:
-        pretrained_dict = torch.load('loadpath here')['state_dict']
+        pretrained_dict = torch.load(
+            './data/models/{}_model_{}.pt'.format(args.model_name, args.start_epoch
+        ))['state_dict']
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)
@@ -54,7 +56,10 @@ def train(datapath, parampath, continue_train=False):
         train_pred_classes = []
         train_ground_truths = []
 
-        for stft_item, label in train_pbar:
+        for i, (stft_item, label) in enumerate(train_pbar):
+
+            if args.early_break > 0 and i > args.early_break:
+                break
 
             # move to GPU
             if torch.cuda.is_available():
@@ -79,6 +84,7 @@ def train(datapath, parampath, continue_train=False):
             train_losses_sum += loss
             train_pbar.set_description('Epoch: {} || Loss: {:.5f} '.format(epoch, train_losses_sum / train_n_total))
             train_n_total += 1
+            
 
         train_pred_classes = np.asarray(train_pred_classes)
         train_ground_truths = np.asarray(train_ground_truths)
@@ -103,7 +109,10 @@ def train(datapath, parampath, continue_train=False):
                 val_pred_classes = []
                 val_ground_truths = []
 
-                for stft_item, label in val_pbar:
+                for i, (stft_item, label) in enumerate(val_pbar):
+
+                    if args.early_break > 0 and i > args.early_break:
+                        break
 
                     # move to GPU
                     if torch.cuda.is_available():
@@ -127,8 +136,9 @@ def train(datapath, parampath, continue_train=False):
 
                 val_pred_classes = np.asarray(val_pred_classes)
                 val_ground_truths = np.asarray(val_ground_truths)
-
                 val_accuracy = np.mean((val_pred_classes == val_ground_truths)).astype(np.float)
+
+                model.train()
 
             print('Epoch: {} || Train_Acc: {} || Train_Loss: {} || Val_Acc: {} || Val_Loss: {}'.format(
                 epoch, train_accuracy, train_losses_sum / train_n_total, val_accuracy, val_losses_sum / val_n_total
