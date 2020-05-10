@@ -38,6 +38,7 @@ import argparse
 import pyedflib
 from collections import OrderedDict
 import numpy as np
+import statistics
 
 # parameter file constants:
 # these are reserved symbols used to parse paramter files
@@ -303,7 +304,7 @@ def nedc_load_parameters(pfile_a):
 #
 
 
-def nedc_load_edf(fname_a):
+def nedc_load_edf(fname_a, start, read_len):
 
     # open an EDF file
     #
@@ -326,13 +327,51 @@ def nedc_load_edf(fname_a):
     #
     sig = []
     fsamp = []
+
+    # block these idiot print statements
+    sys.stdout = open(os.devnull, 'w')
     for i in range(num_chans):
-        sig.append(fp.readSignal(i))
+        sig.append(fp.readSignal(i, start=start, n=read_len))
         fsamp.append(fp.getSampleFrequency(i))
+    sys.stdout = sys.__stdout__
 
     # exit gracefully
     #
     return (fsamp, sig, labels)
+#
+# end of function
+
+
+# ------------------------------------------------------------------------------
+# function: nedc_get_fs
+#
+# arguments:
+#   fname_a: edf file to be located
+
+#
+# return:
+#   pos: sampling frequency of first channel
+#
+# This function finds the sampling frequency of the first channel
+#
+def nedc_get_fs(fname_a):
+
+    # open an EDF file
+    #
+    try:
+        fp = pyedflib.EdfReader(fname_a)
+    except IOError:
+        print("%s (%s: %s): failed to open %s" %
+              (sys.argv[0], __name__, "nedc_load_edf", fname_a))
+        exit(-1)
+
+    # load frequency
+    #
+    fsamp = fp.getSampleFrequency(0)
+
+    # exit gracefully
+    #
+    return fsamp
 #
 # end of function
 

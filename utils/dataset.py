@@ -24,10 +24,10 @@ def findFile(root_dir, contains):
     return all_files
 
 
-def load_edf(params, edf_path):
+def load_edf(params, edf_path, start, read_len):
     """Loads an EDF file given a path to the EDF file as well as the specifying parameter file path."""
     # loads the Edf into memory
-    fsamp, sig, labels = ned.nedc_load_edf(edf_path)
+    fsamp, sig, labels = ned.nedc_load_edf(edf_path, start, read_len)
 
     # select channels from parameter file
     fsamp_sel, sig_sel, labels_sel = ned.nedc_select_channels(params, fsamp, sig, labels)
@@ -103,7 +103,9 @@ class Dataset(data.Dataset):
 
                 window_label = int(seizure_time / args.window_len >= args.seiz_sens)
 
-                self.datalist.append({'filepath': file, 'start_time': window_start, 'label': window_label})
+                self.datalist.append({
+                    'filepath': file, 'start_time': window_start, 'label': window_label, 'short': True
+                })
 
             # get all windows and labels of windows
             while window_start + args.window_len <= recording_length:
@@ -149,7 +151,9 @@ class Dataset(data.Dataset):
                 window_label = int(seizure_time / args.window_len >= args.seiz_sens)
 
                 # add datapoint
-                self.datalist.append({'filepath': file, 'start_time': window_start, 'label': window_label})
+                self.datalist.append({
+                    'filepath': file, 'start_time': window_start, 'label': window_label, 'short': False
+                })
 
                 # continue to next window
                 window_start += next_step_size
@@ -179,13 +183,13 @@ class Dataset(data.Dataset):
 
         return len(self.datalist)
 
-    def edf_to_tensor(self, edf_data, start, freq):
+    def edf_to_tensor(self, edf_data, freq):
         """
         Performs STFT on given edf data, appends montages, and converts it to tensor
         :param edf_data: edf data
         :param start: start time of the window
         :param freq: frequency of sampling edf data
-        :return:
+        :return: tensor format
         """
 
         # sampling frequency
@@ -193,10 +197,6 @@ class Dataset(data.Dataset):
 
         # ensure all sample frequency for each montage is equal
         assert all([freq[i] == sample_freq for i in range(1, len(freq))])
-
-        # cut each edf file to the proper window
-        start_ind = start * sample_freq
-        edf_data = [edf_file[start_ind: start_ind + sample_freq * args.window_len] for edf_file in edf_data]
 
         # special case for very short recordings
         if len(edf_data[0]) < sample_freq * args.window_len:
@@ -238,25 +238,35 @@ class Dataset(data.Dataset):
         window_start = self.datalist[index]['start_time']
         label = self.datalist[index]['label']
 
+        # check sampling frequency
+        samp_freq = ned.nedc_get_fs(edf_path)
+
+        # get start and length of data
+        read_start = window_start * samp_freq
+        read_len = args.window_len * samp_freq
+        if self.datalist[index]['short']:
+            read_start = 0
+            read_len = None
+
         # check which electrode setup is used, labels of montage are not important
         # cut out montages 8 and 13 here
         if '01_tcp_ar' in edf_path:
-            freq, edf, _ = load_edf(self.tcp_ar_params, edf_path)
+            freq, edf, _ = load_edf(self.tcp_ar_params, edf_path, start=read_start, read_len=read_len)
             del freq[8]
             del freq[12]
             del edf[8]
             del edf[12]
         elif '02_tcp_le' in edf_path:
-            freq, edf, _ = load_edf(self.tcp_le_params, edf_path)
+            freq, edf, _ = load_edf(self.tcp_le_params, edf_path, start=read_start, read_len=read_len)
             del freq[8]
             del freq[12]
             del edf[8]
             del edf[12]
         else:
-            freq, edf, _ = load_edf(self.tcp_ar_a_params, edf_path)
+            freq, edf, _ = load_edf(self.tcp_ar_a_params, edf_path, start=read_start, read_len=read_len)
 
         # cut out the correct window segment from each montage, STFT, data augment, append, convert it into a tensor
-        output = self.edf_to_tensor(edf, window_start, freq)
+        output = self.edf_to_tensor(edf, freq)
 
         return output, label
 

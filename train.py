@@ -69,6 +69,7 @@ def train(datapath, parampath, continue_train=False):
             train_pred_classes.append(pred_class.cpu().data.numpy())
             train_ground_truths.append(label.cpu().data.numpy())
 
+            # get loss
             loss = lossfn(prediction, label)
 
             optimizer.zero_grad()
@@ -117,6 +118,7 @@ def train(datapath, parampath, continue_train=False):
                     val_pred_classes.append(pred_class.cpu().data.numpy())
                     val_ground_truths.append(label.cpu().data.numpy())
 
+                    # get loss
                     loss = lossfn(prediction, label)
 
                     val_losses_sum += loss
