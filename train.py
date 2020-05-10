@@ -66,8 +66,8 @@ def train(datapath, parampath, continue_train=False):
 
             # predictions to check for model progression
             pred_class = torch.argmax(prediction, dim=-1)
-            train_pred_classes.append(pred_class.cpu().data.numpy())
-            train_ground_truths.append(label.cpu().data.numpy())
+            train_pred_classes.append(pred_class.cpu().data.numpy().tolist())
+            train_ground_truths.append(label.cpu().data.numpy().tolist())
 
             # get loss
             loss = lossfn(prediction, label)
@@ -88,7 +88,7 @@ def train(datapath, parampath, continue_train=False):
         # ==================== Validation set ====================
 
         # change modulo to do validation every few epochs
-        if epoch % 3 == 0:
+        if epoch % 1 == 0:
 
             # evaluate
             with torch.no_grad():
@@ -115,8 +115,8 @@ def train(datapath, parampath, continue_train=False):
 
                     # predictions to check for model progression
                     pred_class = torch.argmax(prediction, dim=-1)
-                    val_pred_classes.append(pred_class.cpu().data.numpy())
-                    val_ground_truths.append(label.cpu().data.numpy())
+                    val_pred_classes.append(pred_class.cpu().data.numpy().tolist())
+                    val_ground_truths.append(label.cpu().data.numpy().tolist())
 
                     # get loss
                     loss = lossfn(prediction, label)
