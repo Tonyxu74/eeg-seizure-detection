@@ -8,6 +8,8 @@ parser.add_argument('--model_name', default='resnet18', type=str,
                     help='pretrained model name')
 parser.add_argument('--num_electrodes', default=20, type=int,
                     help='number of electrodes used for input')
+parser.add_argument('--workers', default=8, type=int,
+                    help='number of workers to use for GenerateIterator')
 
 parser.add_argument('--lr', default=0.001, type=float,
                     help='learning rate')
@@ -25,7 +27,7 @@ parser.add_argument('--start_epoch', default=1, type=int,
 parser.add_argument('--pretrain_epoch', default=1, type=int,
                     help='epoch to start training. useful if continue from a checkpoint')
 
-parser.add_argument('--batch_size', default=16, type=int,
+parser.add_argument('--batch_size', default=32, type=int,
                     help='input batch size')
 
 parser.add_argument('--window_len', default=30, type=int,

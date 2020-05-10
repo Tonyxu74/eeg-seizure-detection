@@ -4,7 +4,6 @@ import os
 from myargs import args
 from preprocessing import nedc_pystream as ned
 from scipy import signal
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -45,10 +44,11 @@ def load_edf(params, edf_path):
 class Dataset(data.Dataset):
     """Characterizes a dataset for PyTorch"""
 
-    def __init__(self, datapath, eval):
+    def __init__(self, datapath, parampath, eval):
         """
         Initializes dataset for given author and datapath
         :param datapath: path to data
+        :param parampath: path to parameter files
         :param eval: whether to use val or train set
         """
 
@@ -56,12 +56,12 @@ class Dataset(data.Dataset):
 
         # get all edf file paths
         if not self.eval:
-            edf_files = findFile(datapath + '/train', '.edf')
-            label_file = open('../data/_DOCS/ref_train.txt', 'r')
+            edf_files = findFile(datapath + '/edf/train', '.edf')
+            label_file = open(datapath + '/_DOCS/ref_train.txt', 'r')
 
         else:
-            edf_files = findFile(datapath + '/dev', '.edf')
-            label_file = open('../data/_DOCS/ref_dev.txt', 'r')
+            edf_files = findFile(datapath + '/edf/dev', '.edf')
+            label_file = open(datapath + '/_DOCS/ref_dev.txt', 'r')
 
         # create a label dictionary for all file paths, every label is added as a array
         label_dict = {}
@@ -160,15 +160,16 @@ class Dataset(data.Dataset):
             numpos += item['label']
 
         print(
+            f"{'train' if not self.eval else 'val'} || "
             f"positive examples: {numpos} || "
             f"total examples: {len(self.datalist)} || "
             f"percent positive: {numpos/len(self.datalist)}"
         )
 
         # get parameters for the electrode configurations
-        self.tcp_ar_params = ned.nedc_load_parameters('../preprocessing/parameter_files/params_01_tcp_ar.txt')
-        self.tcp_le_params = ned.nedc_load_parameters('../preprocessing/parameter_files/params_02_tcp_le.txt')
-        self.tcp_ar_a_params = ned.nedc_load_parameters('../preprocessing/parameter_files/params_03_tcp_ar_a.txt')
+        self.tcp_ar_params = ned.nedc_load_parameters(parampath + '/params_01_tcp_ar.txt')
+        self.tcp_le_params = ned.nedc_load_parameters(parampath + '/params_02_tcp_le.txt')
+        self.tcp_ar_a_params = ned.nedc_load_parameters(parampath + '/params_03_tcp_ar_a.txt')
 
     def __len__(self):
         """
@@ -260,23 +261,25 @@ class Dataset(data.Dataset):
         return output, label
 
 
-def GenerateIterator(datapath, eval=False, shuffle=True):
+def GenerateIterator(datapath, parampath, eval=False, shuffle=True):
     """
-    Generates a batch iterator for data
+    Creates iterator object
     :param datapath: path to data
-    :param txtcode: code that describes the author to load data from
-    :param shuffle: whether to shuffle the batches around or not
-    :return: a iterator combining the data into batches
+    :param parampath: path to parameter files
+    :param eval: whether to evaluate or train
+    :param shuffle: shuffle data randomly or not
+    :return: iterator object
     """
 
     params = {
-        'batch_size': args.batch_size,  # batch size must be 1, as data is already separated into batches
+        'batch_size': args.batch_size,
         'shuffle': shuffle,
+        'num_workers': args.workers,
         'pin_memory': False,
         'drop_last': False,
     }
 
-    return data.DataLoader(Dataset(datapath=datapath, eval=eval), **params)
+    return data.DataLoader(Dataset(datapath=datapath, parampath=parampath, eval=eval), **params)
 
 
 # check that the data is loading properly
