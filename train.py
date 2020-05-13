@@ -162,4 +162,6 @@ def train(datapath, parampath, continue_train=False, keep=None):
 
 
 if __name__ == '__main__':
-    train('./data', './preprocessing/parameter_files')
+    for i in range(13, 20):
+        train('./data', './preprocessing/parameter_files', keep=[i])
+
