@@ -7,3 +7,6 @@ __pycache__
 .ipynb_checkpoints
 .idea
 venv
+
+# other
+history.json

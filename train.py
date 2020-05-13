@@ -6,6 +6,7 @@ import torch
 import tqdm
 import numpy as np
 from myargs import args
+import json
 
 
 def train(datapath, parampath, continue_train=False, keep=None):
@@ -48,7 +49,8 @@ def train(datapath, parampath, continue_train=False, keep=None):
         model = model.cuda()
         lossfn = lossfn.cuda()
 
-    for epoch in range(start_epoch+1, args.num_epochs):
+    start = start_epoch+1 if continue_train else 0
+    for epoch in range(start, args.num_epochs):
 
         # ==================== Training set ====================
 
@@ -154,12 +156,24 @@ def train(datapath, parampath, continue_train=False, keep=None):
                 'state_dict': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
             }
-            torch.save(state, './data/models/ch{}_{}_model_{}.pt'.format(
+            name = 'ch{}_{}_model_{}'.format(
                 '-'.join([str(ch) for ch in keep]),
                 args.model_name,
                 epoch
-            ))
+            )
+            torch.save(state, './data/models/{}.pt'.format(name))
+
+            history = None
+            with open ('history.json', 'r') as infile:
+                history = json.load(infile)
+                history[name] = {
+                    "train_acc": round(train_accuracy, 2),
+                    "val_acc": round(val_accuracy, 2)
+                }
+            with open("history.json", "w") as outfile: 
+                json.dump(history, outfile)
 
 
 if __name__ == '__main__':
-    train('./data', './preprocessing/parameter_files')
+    for i in range(1, 13):
+        train('./data', './preprocessing/parameter_files', continue_train=False, keep=[i])
