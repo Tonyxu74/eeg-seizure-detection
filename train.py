@@ -8,14 +8,16 @@ import numpy as np
 from myargs import args
 
 
-def train(datapath, parampath, continue_train=False):
+def train(datapath, parampath, continue_train=False, keep=None):
+
+    print('keeping channels {}'.format(str(keep) if keep is not None else 'all'))
 
     # create iterators
-    train_iter = GenerateIterator(datapath, parampath, eval=False)
-    val_iter = GenerateIterator(datapath, parampath, eval=True)
+    train_iter = GenerateIterator(datapath, parampath, keep, eval=False)
+    val_iter = GenerateIterator(datapath, parampath, keep, eval=True)
 
     # get model
-    model = CNN()
+    model = CNN(keep)
 
     # get optimizer and loss function
     optimizer = optim.Adam(
@@ -30,8 +32,11 @@ def train(datapath, parampath, continue_train=False):
 
     # if training model from previous saved weights
     if continue_train:
-        pretrained_dict = torch.load(
-            '{}/models/{}_model_{}.pt'.format(datapath, args.model_name, args.start_epoch
+        pretrained_dict = torch.load('{}/models/ch{}_{}_model_{}.pt'.format(
+            '-'.join([str(ch) for ch in keep]),
+            datapath,
+            args.model_name,
+            args.start_epoch
         ))['state_dict']
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
@@ -149,7 +154,11 @@ def train(datapath, parampath, continue_train=False):
                 'state_dict': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
             }
-            torch.save(state, './data/models/{}_model_{}.pt'.format(args.model_name, epoch))
+            torch.save(state, './data/models/ch{}_{}_model_{}.pt'.format(
+                '-'.join([str(ch) for ch in keep]),
+                args.model_name,
+                epoch
+            ))
 
 
 if __name__ == '__main__':

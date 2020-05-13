@@ -44,15 +44,17 @@ def load_edf(params, edf_path, start, read_len):
 class Dataset(data.Dataset):
     """Characterizes a dataset for PyTorch"""
 
-    def __init__(self, datapath, parampath, eval):
+    def __init__(self, datapath, parampath, keep, eval):
         """
         Initializes dataset for given author and datapath
         :param datapath: path to data
         :param parampath: path to parameter files
+        :param keep: the array of channels to keep
         :param eval: whether to use val or train set
         """
 
         self.eval = eval
+        self.keep_channels = keep
 
         # get all edf file paths
         if not self.eval:
@@ -192,6 +194,10 @@ class Dataset(data.Dataset):
         :return: tensor format
         """
 
+        if self.keep_channels is not None:
+            edf_data = [edf_data[i] for i in self.keep_channels]
+            freq = [freq[i] for i in self.keep_channels]
+
         # sampling frequency
         sample_freq = freq[0]
 
@@ -271,7 +277,7 @@ class Dataset(data.Dataset):
         return output, label
 
 
-def GenerateIterator(datapath, parampath, eval=False, shuffle=True):
+def GenerateIterator(datapath, parampath, keep=None, eval=False, shuffle=True):
     """
     Creates iterator object
     :param datapath: path to data
@@ -289,7 +295,7 @@ def GenerateIterator(datapath, parampath, eval=False, shuffle=True):
         'drop_last': False,
     }
 
-    return data.DataLoader(Dataset(datapath=datapath, parampath=parampath, eval=eval), **params)
+    return data.DataLoader(Dataset(datapath=datapath, parampath=parampath, keep=keep, eval=eval), **params)
 
 
 # check that the data is loading properly

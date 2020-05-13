@@ -5,13 +5,21 @@ import torch
 
 
 class CNN(nn.Module):
-    def __init__(self):
+    def __init__(self, keep=None):
         super(CNN, self).__init__()
+
+        # if none, keep all, else keep channels in this array
+        self.keep_channels = keep
+
         # adjust resnet to fit our data
         self.resnet_model = pretrainedmodels.__dict__[args.model_name](num_classes=1000, pretrained='imagenet')
         del self.resnet_model.last_linear
         del self.resnet_model.conv1
-        self.resnet_model.conv1 = nn.Conv2d(args.num_electrodes, 64, kernel_size=7, stride=2, padding=3, bias=False)
+
+        if self.keep_channels is None:
+            self.resnet_model.conv1 = nn.Conv2d(args.num_electrodes, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        else:
+            self.resnet_model.conv1 = nn.Conv2d(len(self.keep_channels), 64, kernel_size=7, stride=2, padding=3, bias=False)
 
         # final fc layers that fit our data
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))

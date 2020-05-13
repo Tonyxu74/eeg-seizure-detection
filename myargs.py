@@ -24,7 +24,7 @@ parser.add_argument('--num_epochs', default=100, type=int,
                     help='epochs to train for')
 parser.add_argument('--start_epoch', default=1, type=int,
                     help='epoch to start training. useful if continue from a checkpoint')
-parser.add_argument('--early_break', default=-1, type=int,
+parser.add_argument('--early_break', default=2, type=int,
                     help='for debugging. only train on this amount of batches. -1 for normal training')
 
 parser.add_argument('--batch_size', default=64, type=int,
