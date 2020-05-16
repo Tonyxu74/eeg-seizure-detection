@@ -55,6 +55,7 @@ class Dataset(data.Dataset):
 
         self.eval = eval
         self.keep_channels = keep
+        self.std = 0
 
         # get all edf file paths
         if not self.eval:
@@ -230,6 +231,10 @@ class Dataset(data.Dataset):
         tensor = torch.from_numpy(stft_data).float()
 
         # data augmentation here?
+        if not self.eval:
+            noise = torch.from_numpy(np.random.normal(
+                0, self.std, size=tensor.shape)).type(torch.FloatTensor)
+            tensor += noise
 
         return tensor
 

@@ -49,6 +49,10 @@ def train(datapath, parampath, continue_train=False, keep=None):
         model = model.cuda()
         lossfn = lossfn.cuda()
 
+    # set standard deviation for augmentation
+    standard_dev = 0.2
+    train_iter.dataset.std = standard_dev
+
     start = start_epoch+1 if continue_train else 0
     for epoch in range(start, args.num_epochs):
 
@@ -176,6 +180,6 @@ def train(datapath, parampath, continue_train=False, keep=None):
 
 
 if __name__ == '__main__':
-    train('./data', './preprocessing/parameter_files', continue_train=True, keep=[13])
+    train('./data', './preprocessing/parameter_files', continue_train=False, keep=[13])
 
 # 13 was like 77 train and 61 val
