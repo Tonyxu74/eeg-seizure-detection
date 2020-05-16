@@ -34,8 +34,8 @@ def train(datapath, parampath, continue_train=False, keep=None):
     # if training model from previous saved weights
     if continue_train:
         pretrained_dict = torch.load('{}/models/ch{}_{}_model_{}.pt'.format(
-            '-'.join([str(ch) for ch in keep]),
             datapath,
+            '-'.join([str(ch) for ch in keep]),
             args.model_name,
             args.start_epoch
         ))['state_dict']
@@ -164,7 +164,8 @@ def train(datapath, parampath, continue_train=False, keep=None):
             torch.save(state, './data/models/{}.pt'.format(name))
 
             history = None
-            with open ('history.json', 'r') as infile:
+
+            with open('history.json', 'r') as infile:
                 history = json.load(infile)
                 history[name] = {
                     "train_acc": round(train_accuracy, 2),
@@ -175,6 +176,6 @@ def train(datapath, parampath, continue_train=False, keep=None):
 
 
 if __name__ == '__main__':
-    for i in range(13, 20):
-        train('./data', './preprocessing/parameter_files', keep=[i])
+    train('./data', './preprocessing/parameter_files', continue_train=True, keep=[13])
 
+# 13 was like 77 train and 61 val

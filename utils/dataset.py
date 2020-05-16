@@ -298,6 +298,191 @@ def GenerateIterator(datapath, parampath, keep=None, eval=False, shuffle=True):
     return data.DataLoader(Dataset(datapath=datapath, parampath=parampath, keep=keep, eval=eval), **params)
 
 
+class Dataset_eval(data.Dataset):
+    """Characterizes a dataset for PyTorch"""
+
+    def __init__(self, datapath, parampath, keep, val):
+        """
+        Initializes dataset for given author and datapath
+        :param datapath: path to data
+        :param parampath: path to parameter files
+        :param keep: the array of channels to keep
+        :param val: whether to evaluate the validation set
+        """
+
+        self.keep_channels = keep
+        self.validate = val
+
+        # get all edf file paths
+        if not self.validate:
+            edf_files = findFile(datapath + '/edf/eval', '.edf')
+
+        else:
+            edf_files = findFile(datapath + '/edf/dev', '.edf')
+
+        # actual datalist after split into window_len intervals
+        self.datalist = []
+        self.anslist = {}
+
+        # process all files
+        for file in edf_files:
+
+            # get length and samp frequency
+            edf_len = ned.nedc_get_len(file)
+            samp_freq = ned.nedc_get_fs(file)
+
+            recording_length = int(edf_len / samp_freq)
+            window_start = 0
+
+            # get one array for each file
+            ans_arr = np.zeros(shape=(recording_length), dtype=np.float32)
+            avg_arr = np.zeros(shape=(recording_length), dtype=np.uint8)
+            self.anslist[file] = {'pred': ans_arr, 'counter': avg_arr}
+
+            # special case where recording length is less than window length
+            if recording_length < args.window_len:
+                self.datalist.append({
+                    'filepath': file, 'start_time': window_start, 'short': True
+                })
+
+            # get all windows and labels of windows
+            while window_start + args.window_len <= recording_length:
+
+                # add datapoint
+                self.datalist.append({
+                    'filepath': file, 'start_time': window_start, 'short': False
+                })
+
+                # continue to next window
+                window_start += args.window_len - args.eval_overlap
+
+        # get parameters for the electrode configurations
+        self.tcp_ar_params = ned.nedc_load_parameters(parampath + '/params_01_tcp_ar.txt')
+        self.tcp_le_params = ned.nedc_load_parameters(parampath + '/params_02_tcp_le.txt')
+        self.tcp_ar_a_params = ned.nedc_load_parameters(parampath + '/params_03_tcp_ar_a.txt')
+
+        print(f'length of dataset is {len(self.datalist)}')
+
+    def get_anslist(self):
+        return self.anslist
+
+    def __len__(self):
+        """
+        Denotes the total number of samples
+        :return: length of the dataset
+        """
+
+        return len(self.datalist)
+
+    def edf_to_tensor(self, edf_data, freq):
+        """
+        Performs STFT on given edf data, appends montages, and converts it to tensor
+        :param edf_data: edf data
+        :param start: start time of the window
+        :param freq: frequency of sampling edf data
+        :return: tensor format
+        """
+
+        if self.keep_channels is not None:
+            edf_data = [edf_data[i] for i in self.keep_channels]
+            freq = [freq[i] for i in self.keep_channels]
+
+        # sampling frequency
+        sample_freq = freq[0]
+
+        # ensure all sample frequency for each montage is equal
+        assert all([freq[i] == sample_freq for i in range(1, len(freq))])
+
+        # special case for very short recordings
+        if len(edf_data[0]) < sample_freq * args.window_len:
+            # append zeros at end of array to make it the proper length
+            zeros_arr = np.zeros(sample_freq * args.window_len - len(edf_data[0]), dtype=np.float32)
+            edf_data = [np.concatenate((data, zeros_arr)) for data in edf_data]
+
+        # stft each montage
+        stft_data = []
+        for data in edf_data:
+            f, t, stft = signal.stft(data, fs=sample_freq, nperseg=sample_freq)
+            stft_data.append(abs(stft))
+
+        # filter out 0, 57 - 63 and 117 to 123 Hz
+        stft_data = [
+            np.concatenate((
+                stft_item[1:57],
+                stft_item[64: 117],
+                stft_item[124:126]
+            ), axis=0) for stft_item in stft_data
+        ]
+
+        # convert to tensor and return
+        stft_data = np.asarray(stft_data)
+        tensor = torch.from_numpy(stft_data).float()
+
+        return tensor
+
+    def __getitem__(self, index):
+        """
+        Generates one sample of data
+        :param index: index of the data in the datalist
+        :return: returns the data and label in float tensor and long tensor respectively
+        """
+
+        edf_path = self.datalist[index]['filepath']
+        window_start = self.datalist[index]['start_time']
+
+        # check sampling frequency
+        samp_freq = ned.nedc_get_fs(edf_path)
+
+        # get start and length of data
+        read_start = window_start * samp_freq
+        read_len = args.window_len * samp_freq
+        if self.datalist[index]['short']:
+            read_start = 0
+            read_len = None
+
+        # check which electrode setup is used, labels of montage are not important
+        # cut out montages 8 and 13 here
+        if '01_tcp_ar' in edf_path:
+            freq, edf, _ = load_edf(self.tcp_ar_params, edf_path, start=read_start, read_len=read_len)
+            del freq[8]
+            del freq[12]
+            del edf[8]
+            del edf[12]
+        elif '02_tcp_le' in edf_path:
+            freq, edf, _ = load_edf(self.tcp_le_params, edf_path, start=read_start, read_len=read_len)
+            del freq[8]
+            del freq[12]
+            del edf[8]
+            del edf[12]
+        else:
+            freq, edf, _ = load_edf(self.tcp_ar_a_params, edf_path, start=read_start, read_len=read_len)
+
+        # cut out the correct window segment from each montage, STFT, data augment, append, convert it into a tensor
+        output = self.edf_to_tensor(edf, freq)
+
+        return output, window_start, edf_path
+
+
+def GenerateIterator_eval(datapath, parampath, keep=None, val=False, shuffle=False):
+    """
+    Creates iterator object
+    :param datapath: path to data
+    :param parampath: path to parameter files
+    :param shuffle: shuffle data randomly or not
+    :return: iterator object
+    """
+
+    params = {
+        'batch_size': args.batch_size,
+        'shuffle': shuffle,
+        'num_workers': 0,
+        'pin_memory': False,
+        'drop_last': False,
+    }
+
+    return data.DataLoader(Dataset_eval(datapath=datapath, parampath=parampath, keep=keep, val=val), **params)
+
+
 # check that the data is loading properly
 # iter = GenerateIterator('../data/edf', shuffle=False, eval=True)
 #
@@ -316,3 +501,5 @@ def GenerateIterator(datapath, parampath, keep=None, eval=False, shuffle=True):
 #     plt.show()
 #
 #     break
+
+# iter = GenerateIterator_eval('../data', '../preprocessing/parameter_files')

@@ -376,6 +376,40 @@ def nedc_get_fs(fname_a):
 # end of function
 
 # ------------------------------------------------------------------------------
+# function: nedc_get_len
+#
+# arguments:
+#   fname_a: edf file to be located
+
+#
+# return:
+#   pos: sampling frequency of first channel
+#
+# This function finds the sampling frequency of the first channel
+#
+def nedc_get_len(fname_a):
+
+    # open an EDF file
+    #
+    try:
+        fp = pyedflib.EdfReader(fname_a)
+    except IOError:
+        print("%s (%s: %s): failed to open %s" %
+              (sys.argv[0], __name__, "nedc_load_edf", fname_a))
+        exit(-1)
+
+    # load frequency
+    #
+    flen = fp.getNSamples()
+
+    # exit gracefully
+    #
+    return flen[0]
+#
+# end of function
+
+# ------------------------------------------------------------------------------
+
 # function: nedc_get_pos
 #
 # arguments:
