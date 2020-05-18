@@ -1,5 +1,6 @@
 # big files
 data
+answers.npy
 
 # dumb caching
 preprocessing/__pycache__
@@ -10,3 +11,4 @@ venv
 
 # other
 history.json
+hyp.txt

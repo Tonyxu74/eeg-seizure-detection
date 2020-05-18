@@ -5,6 +5,7 @@ import torch
 import numpy as np
 from scipy.ndimage.morphology import binary_closing, binary_opening
 from tqdm import tqdm
+import math
 
 
 def generate(datapath, parampath, keep=None):
@@ -57,20 +58,31 @@ def generate(datapath, parampath, keep=None):
             answers[file]['pred'][st_time: st_time + args.window_len] += pred[1].item()
             answers[file]['counter'][st_time: st_time + args.window_len] += 1
 
+    # save the answers, load later if needed
+    np.save('answers.npy', answers)
+
+
+def create_hyp(ans_path):
+    answers = np.load(ans_path, allow_pickle=True).flatten()[0]
+
     # create hypothesis text
     for file_path in answers.keys():
         pred_arr = answers[file_path]['pred']
         counter_arr = answers[file_path]['counter']
 
+        for i in range(len(counter_arr)):
+            if counter_arr[i] == 0:
+                counter_arr[i] = 1
+
         final_arr = np.divide(pred_arr, counter_arr)
 
-        # adjust threshold for more/less sensitive
-        threshold = 0.9
+        # adjust threshold for more/less sensitive 0.3-0.9
+        threshold = 0.99999
         final_arr = final_arr > threshold
 
-        # test larger structures and changing order on final output
-        final_arr = binary_closing(final_arr, structure=np.ones(3))
-        final_arr = binary_opening(final_arr, structure=np.ones(3))
+        # test larger structures and changing order on final output, size from 2 - 10
+        final_arr = binary_opening(final_arr, structure=np.ones(30))
+        final_arr = binary_closing(final_arr, structure=np.ones(30))
 
         file_name = file_path.split('\\')[-1].replace('.edf', '')
 
@@ -78,16 +90,18 @@ def generate(datapath, parampath, keep=None):
         with open('hyp.txt', 'a') as fp:
             seiz_start = 0
             for i in range(len(final_arr) - 1):
-                if final_arr[i] == 0 and final_arr[i+1] == 1:
-                    seiz_start = i+1
+                if final_arr[i] == 0 and final_arr[i + 1] == 1:
+                    seiz_start = i + 1
 
-                elif final_arr[i] == 1 and final_arr[i+1] == 0:
+                elif final_arr[i] == 1 and final_arr[i + 1] == 0:
                     # add start/end time to the file
                     # don't wanna report confidence so use 1.0, and 3 is the number of channels we are using
-                    fp.write(f'{file_name} {float(seiz_start)} {float(i+1)} {1.0} {3}\n')
+                    fp.write(f'{file_name} {float(seiz_start)} {float(i + 1)} {1.0} {3}\n')
 
 
-generate('./data', './preprocessing/parameter_files', keep=[13])
+if __name__ == '__main__':
+    # generate('./data', './preprocessing/parameter_files', keep=[2, 9, 13])
+    create_hyp('./answers.npy')
 
 
 
