@@ -480,7 +480,7 @@ def GenerateIterator_eval(datapath, parampath, keep=None, val=False, shuffle=Fal
     params = {
         'batch_size': args.batch_size,
         'shuffle': shuffle,
-        'num_workers': 0,
+        'num_workers': args.workers,
         'pin_memory': False,
         'drop_last': False,
     }

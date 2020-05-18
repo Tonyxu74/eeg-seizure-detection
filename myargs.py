@@ -20,16 +20,16 @@ parser.add_argument('--beta1', default=0.9, type=float,
 parser.add_argument('--beta2', default=0.999, type=float,
                     help='momentum for sgd, beta1 for adam')
 
-parser.add_argument('--num_epochs', default=2, type=int,
+parser.add_argument('--num_epochs', default=10, type=int,
                     help='epochs to train for')
-parser.add_argument('--start_epoch', default=0, type=int,
+parser.add_argument('--start_epoch', default=3, type=int,
                     help='epoch to start training. useful if continue from a checkpoint')
-parser.add_argument('--eval_epoch', default=0, type=int,
+parser.add_argument('--eval_epoch', default=3, type=int,
                     help='epoch to start training. useful if continue from a checkpoint')
 parser.add_argument('--early_break', default=-1, type=int,
                     help='for debugging. only train on this amount of batches. -1 for normal training')
 
-parser.add_argument('--batch_size', default=64, type=int,
+parser.add_argument('--batch_size', default=128, type=int,
                     help='input batch size')
 
 parser.add_argument('--window_len', default=30, type=int,
@@ -38,8 +38,8 @@ parser.add_argument('--label_0_overlap', default=0, type=int,
                     help='overlap between 2 adjacent windows if they are label 0')
 parser.add_argument('--label_1_overlap', default=28, type=int,
                     help='overlap between 2 adjacent windows if they are label 1')
-parser.add_argument('--eval_overlap', default=15, type=int,
-                    help='overlap between 2 adjacent windows if they are label 1')
+parser.add_argument('--eval_overlap', default=25, type=int,
+                    help='overlap between 2 adjacent windows for evaluation')
 parser.add_argument('--seiz_sens', default=0.3, type=float,
                     help='percent of window that must be positive to label it seizure')
 
